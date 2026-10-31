@@ -272,10 +272,7 @@ def remove_successive(all_couples: CplIndexToCplLines_T) -> None:
             test = test.increment(Index(1))
 
         for target in to_remove:
-            try:
-                all_couples.pop(target)
-            except KeyError:
-                pass
+            all_couples.pop(target, None)
 
 
 def filter_noncode_lines(
