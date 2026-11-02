@@ -802,11 +802,15 @@ def _local_name_spans(
             node for node in (arguments.vararg_node, arguments.kwarg_node) if node
         )
 
+    external_names: dict[nodes.LocalsDictNodeNG, set[str]] = defaultdict(set)
+    for declaration in tree.nodes_of_class((nodes.Global, nodes.Nonlocal)):
+        external_names[declaration.scope()].update(declaration.names)
+
     spans: dict[int, list[tuple[int, int, str]]] = defaultdict(list)
     for node in candidates:
         if node.lineno is None or node.col_offset is None:
             continue
-        if not _is_local_name(node):
+        if not _is_local_name(node, external_names):
             continue
         line = lines[node.lineno - 1]
         # astroid columns count UTF-8 bytes, not characters.
@@ -827,14 +831,48 @@ def _local_name_spans(
     return {lineno: sorted(set(found)) for lineno, found in spans.items()}
 
 
-def _is_local_name(node: nodes.AssignName | nodes.Name | nodes.DelName) -> bool:
+def _evaluation_scope(node: nodes.NodeNG) -> nodes.LocalsDictNodeNG | None:
+    """Find a name's evaluation scope, preserving function annotation references."""
+    scope = node.parent.scope()
+    if isinstance(scope, (nodes.FunctionDef, nodes.Lambda)):
+        if scope.args.parent_of(node) and not (
+            isinstance(node, nodes.AssignName) and node.parent is scope.args
+        ):
+            defaults = (*scope.args.defaults, *scope.args.kw_defaults)
+            if any(
+                default is node or default.parent_of(node)
+                for default in defaults
+                if default is not None
+            ):
+                return _evaluation_scope(scope)
+            # Annotation evaluation differs between Python versions. Type names
+            # are significant even when an enclosing function binds them.
+            return None
+        if isinstance(scope, nodes.FunctionDef) and scope.returns is not None:
+            if scope.returns is node or scope.returns.parent_of(node):
+                return None
+    elif isinstance(
+        scope, (nodes.ListComp, nodes.SetComp, nodes.DictComp, nodes.GeneratorExp)
+    ):
+        iterable = scope.generators[0].iter
+        if iterable is node or iterable.parent_of(node):
+            return _evaluation_scope(scope)
+    return scope
+
+
+def _is_local_name(
+    node: nodes.AssignName | nodes.Name | nodes.DelName,
+    external_names: dict[nodes.LocalsDictNodeNG, set[str]],
+) -> bool:
     """Whether ``node`` resolves to a data binding in a function-like scope.
 
     This walks the scopes directly: ``node.lookup()`` only sees bindings made before
     the node, so it resolves the first assignment of a local to the enclosing scope.
     """
-    scope = node.scope()
-    while not isinstance(scope, nodes.Module):
+    scope = _evaluation_scope(node)
+    while scope is not None and not isinstance(scope, nodes.Module):
+        if node.name in external_names.get(scope, ()):
+            return False
         bindings = scope.locals.get(node.name)
         if bindings:
             return isinstance(scope, _LOCAL_SCOPES) and all(
@@ -842,9 +880,9 @@ def _is_local_name(node: nodes.AssignName | nodes.Name | nodes.DelName) -> bool:
                 for binding in bindings
             )
         # Code in a function does not see the names of an enclosing class body.
-        parent = scope.parent.scope()
+        parent = _evaluation_scope(scope)
         while isinstance(parent, nodes.ClassDef):
-            parent = parent.parent.scope()
+            parent = _evaluation_scope(parent)
         scope = parent
     return False
 

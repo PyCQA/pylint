@@ -816,3 +816,118 @@ def test_ignore_local_names_checker_option() -> None:
 def test_ignore_local_names_template(source: str, expected: str) -> None:
     lineset = LineSet("a.py", source.splitlines(keepends=True), ignore_local_names=True)
     assert lineset.stripped_lines[-1].template == expected
+
+
+@pytest.mark.parametrize(
+    "expression, expected",
+    [
+        ("[x for x in x]", "[\0 for \0 in x]"),
+        ("{x for x in x}", "{\0 for \0 in x}"),
+        ("{x: x for x in x}", "{\0: \0 for \0 in x}"),
+        ("(x for x in x)", "(\0 for \0 in x)"),
+        ("[x for x in list(x)]", "[\0 for \0 in list(x)]"),
+        ("[[y for y in x] for x in x]", "[[\0 for \0 in \0] for \0 in x]"),
+        ("[x for x in [x for x in x]]", "[\0 for \0 in [\0 for \0 in x]]"),
+        ("[y for x in x for y in x if y]", "[\0 for \0 in x for \0 in \0 if \0]"),
+        ("[lambda: x for x in x]", "[lambda: \0 for \0 in x]"),
+        ("[x for x in (lambda: x)()]", "[\0 for \0 in (lambda: x)()]"),
+        ("lambda x=x: x", "lambda \0=x: \0"),
+        ("lambda x=(x + 1): x", "lambda \0=(x + 1): \0"),
+        ("lambda x=(lambda: x): x", "lambda \0=(lambda: x): \0"),
+    ],
+)
+def test_ignore_local_names_expression_scope(expression: str, expected: str) -> None:
+    source = f"def f():\n    return {expression}\n"
+    lineset = LineSet("a.py", source.splitlines(keepends=True), ignore_local_names=True)
+    assert lineset.stripped_lines[-1].template == f"return {expected}"
+
+
+@pytest.mark.parametrize(
+    "source, expected",
+    [
+        ("def f(x=x): pass", "def f(\0=x): pass"),
+        ("def f(x=(x + 1)): pass", "def f(\0=(x + 1)): pass"),
+        ("def f(*, x=x, y): pass", "def f(*, \0=x, \0): pass"),
+        ("def f(x=lambda: x): pass", "def f(\0=lambda: x): pass"),
+        ("def f(x: x): pass", "def f(\0: x): pass"),
+        ("def f(x: list[x]): pass", "def f(\0: list[x]): pass"),
+        ("def f(x) -> x: pass", "def f(\0) -> x: pass"),
+        ("def f(x) -> list[x]: pass", "def f(\0) -> list[x]: pass"),
+        ("def f(*x: x, **y: y): pass", "def f(*\0: x, **\0: y): pass"),
+        ("def outer(x):\n    def f(x=x): pass", "def f(\0=\0): pass"),
+        (
+            "def outer(x):\n    def f(x: x=x) -> x: pass",
+            "def f(\0: x=\0) -> x: pass",
+        ),
+        (
+            "def outer(x):\n    return [[x for x in x] for x in x]",
+            "return [[\0 for \0 in \0] for \0 in \0]",
+        ),
+        (
+            "class C:\n    x = 1\n    def f(x=x): pass",
+            "def f(\0=x): pass",
+        ),
+        (
+            "def outer(x):\n    class C:\n        x = 1\n"
+            "        def f(y=x): return x",
+            "def f(\0=x): return \0",
+        ),
+        (
+            "def outer(x):\n    class C:\n        x = [x for x in x]",
+            "x = [\0 for \0 in x]",
+        ),
+        ("x = 1\ndef f():\n    x = x + 1", "\0 = \0 + 1"),
+        (
+            "x = 1\ndef outer(x):\n    def inner():\n        global x\n        return x",
+            "return x",
+        ),
+        (
+            "x = 1\ndef outer(x):\n    def inner():\n        global x\n"
+            "        return lambda: x",
+            "return lambda: x",
+        ),
+        (
+            "def outer():\n    from os import path\n    def inner():\n"
+            "        nonlocal path\n        path = 3\n        return path",
+            "return path",
+        ),
+        (
+            "def outer(x):\n    def inner():\n        nonlocal x\n        x += 1",
+            "x += 1",
+        ),
+        (
+            "def outer(x):\n    def inner():\n        nonlocal x\n    return x",
+            "return \0",
+        ),
+        ("def outer(x):\n    return lambda x=x: x", "return lambda \0=\0: \0"),
+        (
+            "def outer(x):\n    def f(y=lambda: x): pass",
+            "def f(\0=lambda: \0): pass",
+        ),
+    ],
+)
+def test_ignore_local_names_definition_scope(source: str, expected: str) -> None:
+    lineset = LineSet("a.py", source.splitlines(keepends=True), ignore_local_names=True)
+    assert lineset.stripped_lines[-1].template == expected
+
+
+@pytest.mark.parametrize("expression", ["[x for x in x]", "(lambda x=x: x)()"])
+def test_ignore_local_names_keeps_enclosing_globals(expression: str) -> None:
+    source = f"""
+        def f():
+            result = {expression}
+            result = sorted(result)
+            result = tuple(result)
+            result = list(result)
+            return result
+    """
+    renamed = (
+        source.replace("def f", "def g").replace("result", "output").replace("x", "y")
+    )
+    assert not _common_chunks(source, renamed, True)
+
+
+def test_ignore_local_names_decorator_scope() -> None:
+    source = "def outer(x):\n    @decorate(x)\n    def f(x): pass\n"
+    lineset = LineSet("a.py", source.splitlines(keepends=True), ignore_local_names=True)
+    assert lineset.stripped_lines[-2].template == "@decorate(\0)"
