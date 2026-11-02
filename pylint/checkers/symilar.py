@@ -63,7 +63,7 @@ DEFAULT_MIN_SIMILARITY_LINE = 4
 REGEX_FOR_LINES_WITH_CONTENT = re.compile(r".*\w+")
 
 # Stands in for a local name in LineSpecifs.template. Python source cannot contain
-# NUL, so it never collides with real text.
+# a null character, so it never collides with real text.
 LOCAL_NAME_PLACEHOLDER = "\0"
 
 # Once local names are replaced, a line made only of placeholders, brackets, commas
@@ -247,7 +247,7 @@ def _window_hashes(
     """Yield the hash of each window of ``min_common_lines`` successive lines."""
     if ignore_local_names:
         # The renaming is only consistent within a window, so each window is
-        # canonicalised on its own instead of sliding a rolling sum.
+        # normalized on its own instead of sliding a rolling sum.
         for i in range(len(stripped) - min_common_lines + 1):
             yield hash(tuple(_canonical_lines(stripped[i : i + min_common_lines])))
         return
@@ -371,7 +371,7 @@ def _count_common_lines_ignoring_local_names(
 ) -> int:
     """Count the code lines that match up to a consistent renaming of local names.
 
-    Canonicalising over the whole merged block (not per window) means a renaming
+    Normalizing over the whole merged block (not per window) means a renaming
     has to be consistent across the block for its lines to count. A line made only of
     local names counts only when it matches verbatim.
     """
