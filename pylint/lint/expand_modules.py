@@ -70,10 +70,8 @@ def _is_ignored_file(
 def _is_case_insensitive_fs() -> bool:
     """Return ``True`` only on Windows, where paths are case-insensitive by default.
 
-    The canonicalization below is only needed on Windows; gating it behind an
-    explicit platform check avoids the extra filesystem lookups everywhere else
-    (e.g. macOS, which is also case-insensitive by default but does not need the
-    normalization for correct results).
+    Only Windows needs the input paths rewritten to match the disk. The explicit
+    platform check keeps the extra file system calls off every other host.
     """
     return os.name == "nt"
 
