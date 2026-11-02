@@ -4,7 +4,7 @@ to a consistent renaming, so a copied block whose local variables were renamed i
 still reported.
 
 Default arguments and the outermost iterable of a comprehension use their
-enclosing scope. References in function annotations and names declared with
+enclosing scope. Type names in function annotations and names declared with
 ``global`` or ``nonlocal`` keep their spelling.
 
 Closes #11677
