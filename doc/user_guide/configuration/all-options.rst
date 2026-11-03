@@ -215,7 +215,7 @@ Standard Checkers
 
 --ignore-paths
 """"""""""""""
-*Add files or directories matching the regular expressions patterns to the ignore-list. The regex matches against paths and can be in Posix or Windows format. Because '\\' represents the directory delimiter on Windows systems, it can't be used as an escape character.*
+*Add files or directories matching the regular expressions patterns to the ignore-list. The regex matches against paths and can be in Posix or Windows format. Because '\\\\' represents the directory delimiter on Windows systems, it can't be used as an escape character.*
 
 **Default:**  ``[]``
 
@@ -371,7 +371,7 @@ Standard Checkers
 
 --output-format
 """""""""""""""
-*Set the output format. Available formats are: 'text', 'parseable', 'colorized', 'json2' (improved json format), 'json' (old json format), 'msvs' (visual studio), 'github' (GitHub actions) and 'junit' (JUnit XML). You can also give a reporter class, e.g. mypackage.mymodule.MyReporterClass.*
+*Set the output format. Available formats are: 'text', 'no-header' (text without module headers), 'parseable', 'colorized', 'json2' (improved json format), 'json' (old json format), 'msvs' (visual studio), 'github' (GitHub actions) and 'junit' (JUnit XML). You can also give a reporter class, e.g. mypackage.mymodule.MyReporterClass.*
 
 **Default:**  ``text``
 
@@ -1529,7 +1529,7 @@ Standard Checkers
 
 --logging-format-style
 """"""""""""""""""""""
-*The type of string formatting that logging methods do. `old` means using % formatting, `new` is for `{}` formatting.*
+*The string formatting style Pylint expects in logging calls. `old` means using % formatting, `new` is for `{}` formatting.*
 
 **Default:**  ``old``
 
@@ -1754,7 +1754,7 @@ Standard Checkers
 
 --min-similarity-lines
 """"""""""""""""""""""
-*Minimum lines number of a similarity.*
+*Minimum lines number of a similarity. Setting it to 0 will disable the check, but you should use disable=duplicate-code instead.*
 
 **Default:**  ``4``
 
@@ -2339,7 +2339,7 @@ Extensions
 
 --valid-magic-values
 """"""""""""""""""""
-*List of valid magic values that `magic-value-compare` will not detect. Supports integers, floats, negative numbers, for empty string enter ``''``, for backslash values just use one backslash e.g \n.*
+*List of valid magic values that `magic-value-compare` will not detect. Supports integers, floats, negative numbers, for empty string enter ``''``, for backslash values just use one backslash e.g \\n.*
 
 **Default:**  ``(0, -1, 1, '', '__main__')``
 

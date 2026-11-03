@@ -11,6 +11,17 @@ Messages overview
 
 Pylint can emit the following messages:
 
+Find a message by ID or symbol:
+
+.. raw:: html
+
+   <form onsubmit="location='./'+encodeURIComponent(this.message.value);return false">
+     <label for="message-search">Message ID or symbol</label>
+     <input id="message-search" name="message" type="search"
+       placeholder="C0114 or missing-module-docstring" pattern="[A-Za-z0-9-]+" required>
+     <button type="submit">Open message</button>
+   </form>
+
 
 .. _fatal-category:
 
@@ -99,6 +110,7 @@ All messages in the error category:
    error/invalid-getnewargs-returned
    error/invalid-hash-returned
    error/invalid-index-returned
+   error/invalid-lazy-import
    error/invalid-length-hint-returned
    error/invalid-length-returned
    error/invalid-match-args-definition
@@ -377,6 +389,7 @@ All messages in the warning category:
    warning/using-f-string-in-unsupported-version
    warning/using-final-decorator-in-unsupported-version
    warning/using-generic-type-syntax-in-unsupported-version
+   warning/using-lazy-import-in-unsupported-version
    warning/using-positional-only-args-in-unsupported-version
    warning/while-used
    warning/wildcard-import

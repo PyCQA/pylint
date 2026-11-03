@@ -32,10 +32,10 @@ from pylint.checkers.utils import (
     is_comprehension,
     is_in_stub_file,
     is_iterable,
+    is_module_member,
     is_overload_stub,
     is_property_setter,
     is_property_setter_or_deleter,
-    is_typing_member,
     node_frame_class,
     only_required_for_messages,
     safe_infer,
@@ -207,10 +207,10 @@ def _is_trivial_super_delegation(function: nodes.FunctionDef) -> bool:
 
 
 def _positional_parameters(method: nodes.FunctionDef) -> list[nodes.AssignName]:
-    positional = method.args.args
+    positional = [*method.args.posonlyargs, *method.args.args]
     if method.is_bound() and method.type in {"classmethod", "method"}:
         positional = positional[1:]
-    return positional  # type: ignore[no-any-return]
+    return positional
 
 
 class _DefaultMissing:
@@ -283,6 +283,11 @@ def _has_different_parameters(
                 continue
             except astroid.NoDefault:
                 return ["Number of parameters "]
+
+        # A positional-only parameter cannot be passed by name,
+        # so renaming it in the override is safe.
+        if original_param in original_param.parent.posonlyargs:
+            continue
 
         # check for the arguments' name
         names = [param.name for param in (original_param, overridden_param)]
@@ -1168,7 +1173,8 @@ a metaclass class method.",
             if isinstance(ancestor, nodes.ClassDef):
                 decorators = ancestor.decorators.nodes if ancestor.decorators else []
                 if decorated_with(ancestor, ["typing.final"]) or any(
-                    is_typing_member(decorator, ("final",)) for decorator in decorators
+                    is_module_member(decorator, "typing.final")
+                    for decorator in decorators
                 ):
                     self.add_message(
                         "subclassed-final-class",
@@ -1624,9 +1630,13 @@ a metaclass class method.",
 
         if meth_node is not None:
             # Detect if the super method uses varargs and the function doesn't or makes some of those explicit
-            if meth_node.args.vararg and (
-                not function.args.vararg
-                or len(function.args.args) > len(meth_node.args.args)
+            if (
+                meth_node.args.vararg
+                and meth_node.args.args is not None
+                and (
+                    not function.args.vararg
+                    or len(function.args.args) > len(meth_node.args.args)
+                )
             ):
                 return
 
@@ -1714,7 +1724,9 @@ a metaclass class method.",
         )
         if (
             decorated_with(parent_function_node, ["typing.final"])
-            or any(is_typing_member(decorator, ("final",)) for decorator in decorators)
+            or any(
+                is_module_member(decorator, "typing.final") for decorator in decorators
+            )
         ) and self._py38_plus:
             self.add_message(
                 "overridden-final-method",
@@ -2181,8 +2193,14 @@ a metaclass class method.",
             outer_klass = get_outer_class(outer_klass)
 
         # We are in a class, one remaining valid cases, Klass._attr inside
-        # Klass
-        if not (inside_klass or callee in klass.basenames):
+        # Klass. Also compare against the bases without their subscript, so
+        # that Parent._attr is accepted for a generic base like Parent[T].
+        base_names = {
+            base.value.as_string()
+            for base in klass.bases
+            if isinstance(base, nodes.Subscript)
+        }.union(klass.basenames)
+        if not (inside_klass or callee in base_names):
             # Detect property assignments in the body of the class.
             # This is acceptable:
             #
@@ -2594,14 +2612,18 @@ a metaclass class method.",
         if len(arg_differ_output) > 0:
             for msg in arg_differ_output:
                 if "Number" in msg:
-                    total_args_method1 = len(method1.args.args)
+                    total_args_method1 = len(method1.args.args) + len(
+                        method1.args.posonlyargs
+                    )
                     if method1.args.vararg:
                         total_args_method1 += 1
                     if method1.args.kwarg:
                         total_args_method1 += 1
                     if method1.args.kwonlyargs:
                         total_args_method1 += len(method1.args.kwonlyargs)
-                    total_args_refmethod = len(refmethod.args.args)
+                    total_args_refmethod = len(refmethod.args.args) + len(
+                        refmethod.args.posonlyargs
+                    )
                     if refmethod.args.vararg:
                         total_args_refmethod += 1
                     if refmethod.args.kwarg:
