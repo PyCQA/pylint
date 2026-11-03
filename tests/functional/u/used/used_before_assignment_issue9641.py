@@ -54,6 +54,16 @@ def test_direct_default(x=single_dec):
     return x
 
 
+# Direct self-reference in a decorator walrus should still trigger
+# used-before-assignment
+def test_direct_self_reference():
+    @dec(direct_self := direct_self)  # [used-before-assignment]
+    def inner():
+        pass
+
+    return inner
+
+
 # Comprehension walrus should not be affected by decorator walrus checks
 def test_comprehension_walrus(items):
     return [
