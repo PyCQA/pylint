@@ -747,3 +747,12 @@ def test_is_defined_in_decorator_handles_non_walrus_defnode() -> None:
     var_node = astroid.extract_node("value")
 
     assert utils._is_defined_in_decorator(var_node, assign.targets[0]) is False
+
+    module = astroid.parse("value = 1\nvalue")
+    assert (
+        utils._is_defined_in_decorator(
+            module.body[1].value,
+            module.body[0].targets[0],
+        )
+        is True
+    )
