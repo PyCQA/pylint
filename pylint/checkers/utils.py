@@ -393,10 +393,12 @@ def defnode_in_scope(
 def _is_defined_in_decorator(var_node: nodes.Name, defnode: nodes.NodeNG) -> bool:
     """Check if variable defined in decorator is evaluated before var_node."""
     named_expr = defnode.parent
-    if isinstance(named_expr, nodes.NamedExpr) and (
-        named_expr.value is var_node or named_expr.value.parent_of(var_node)
-    ):
-        return False
+    if isinstance(named_expr, nodes.NamedExpr):
+        value = named_expr.value
+        if value is var_node:
+            return False
+        if value.parent_of(var_node):
+            return False
     def_lineno = defnode.lineno or 0
     var_lineno = var_node.lineno or 0
     if def_lineno < var_lineno:

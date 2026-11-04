@@ -739,3 +739,11 @@ def test_safe_slots_returns_nothing_for_inconsistent_bases() -> None:
         __slots__ = ("label",)
     """)
     assert utils.safe_slots(node) is None
+
+
+def test_is_defined_in_decorator_handles_non_walrus_defnode() -> None:
+    """A decorator definition without a walrus parent falls back to source order."""
+    assign = astroid.extract_node("value = 1")
+    var_node = astroid.extract_node("value")
+
+    assert utils._is_defined_in_decorator(var_node, assign.targets[0]) is False
