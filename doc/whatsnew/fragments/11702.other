@@ -1,0 +1,6 @@
+Clarify in the documentation of ``--logging-format-style`` that this option only
+affects the checks Pylint performs and does not change the formatting done by
+the logging facility itself. With the standard library ``logging`` module,
+switching to ``new`` has no effect.
+
+Refs #11702
