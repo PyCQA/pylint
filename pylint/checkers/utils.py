@@ -624,7 +624,7 @@ def parse_format_string(
             flags = "diouxXeEfFgGcrs%a"
             if char not in flags:
                 raise UnsupportedFormatCharacter(i)
-            if key:
+            if key is not None:
                 keys.add(key)
                 key_types[key] = char
             elif char != "%":

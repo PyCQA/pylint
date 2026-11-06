@@ -21,3 +21,5 @@ def pprint():
     print("String" % ())  # [format-string-without-interpolation]
     print("String" % [])  # [format-string-without-interpolation]
     print("String" % None)  # [format-string-without-interpolation]
+    print("%()s %(PARG_1)s" % {'': 1, 'PARG_1': 2})
+    print("%()s" % (PARG_1,))  # [format-needs-mapping]
