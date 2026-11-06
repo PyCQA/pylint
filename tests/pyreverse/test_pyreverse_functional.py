@@ -69,6 +69,32 @@ def test_packages(testfile: FunctionalPyreverseTestfile, tmp_path: Path) -> None
     _test_diagrams(testfile, tmp_path)
 
 
+def test_distinct_dependency_import_aliases(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Keep distinct dependency modules that load the same source file."""
+    dependency = tmp_path / "dependency"
+    dependency.mkdir()
+    (dependency / "__init__.py").touch()
+    (dependency / "models.py").write_text("class Parent: pass\n", encoding="utf8")
+    source = tmp_path / "children.py"
+    source.write_text(
+        "from models import Parent as FlatParent\n"
+        "from dependency.models import Parent as PackageParent\n"
+        "class FlatChild(FlatParent): pass\n"
+        "class PackageChild(PackageParent): pass\n",
+        encoding="utf8",
+    )
+    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.syspath_prepend(str(dependency))
+
+    assert Run(["-Amy", "-o", "dot", "-d", str(tmp_path), str(source)]).run() == 0
+
+    diagram = (tmp_path / "classes.dot").read_text(encoding="utf8")
+    assert '"children.FlatChild" -> "models.Parent"' in diagram
+    assert '"children.PackageChild" -> "dependency.models.Parent"' in diagram
+
+
 def _test_diagrams(testfile: FunctionalPyreverseTestfile, tmp_path: Path) -> None:
     input_source = testfile.source
     is_package = input_source.is_dir()
